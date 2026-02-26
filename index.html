@@ -487,7 +487,7 @@
       <button class="btn-empty" onclick="openAddRoom()">＋ สร้างห้องใหม่</button>
     </div>
 
-    <div id="billForm" >
+    <div id="billForm" style="display:none">
       <div class="form-header">
         <div class="header-pill">
           <span>🏠</span>
@@ -903,8 +903,7 @@
     document.getElementById('billYearSel').value  = n.getFullYear() + 543;
     calcWater(); calcElec();
   }
-  document.getElementById('emptyState').style.display = 'none';
-document.getElementById('billForm').style.display = 'block';
+  
 </script>
 </body>
 </html>
