@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบรับชำระค่าสาธารณูปโภค</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2230;
+    --border: #30363d;
+    --water: #38bdf8;
+    --electric: #fbbf24;
+    --success: #4ade80;
+    --danger: #f87171;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --sidebar-w: 260px;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+    min-height: 100vh;
+    display: flex;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(56,189,248,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 35% at 80% 80%, rgba(251,191,36,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    height: 100vh;
+    position: fixed;
+    left: 0; top: 0;
+    display: flex;
+    flex-direction: column;
+    z-index: 50;
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .sidebar.collapsed { transform: translateX(-100%); }
+
+  .sidebar-head {
+    padding: 20px 18px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .logo-icons { display: flex; gap: 4px; }
+  .logo-icons span {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .logo-icons .w { background: rgba(56,189,248,0.15); }
+  .logo-icons .e { background: rgba(251,191,36,0.15); }
+
+  .sidebar-close-btn {
+    background: none; border: none;
+    color: var(--muted); cursor: pointer;
+    font-size: 18px; padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.15s;
+    line-height: 1;
+  }
+  .sidebar-close-btn:hover { background: var(--surface2); color: var(--text); }
+
+  .btn-add-room {
+    margin: 14px 14px 10px;
+    padding: 11px 14px;
+    background: rgba(56,189,248,0.08);
+    border: 1px dashed rgba(56,189,248,0.4);
+    border-radius: 12px;
+    color: var(--water);
+    font-family: 'Sarabun', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .btn-add-room:hover { background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.7); }
+
+  .rooms-label {
+    padding: 6px 18px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .rooms-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 10px 20px;
+  }
+  .rooms-list::-webkit-scrollbar { width: 4px; }
+  .rooms-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .room-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+  }
+  .room-item:hover { background: var(--surface2); }
+  .room-item.active {
+    background: rgba(56,189,248,0.1);
+    border-color: rgba(56,189,248,0.25);
+  }
+  .room-info { display: flex; flex-direction: column; gap: 2px; }
+  .room-name { font-family: 'Prompt', sans-serif; font-weight: 600; font-size: 14px; }
+  .room-item.active .room-name { color: var(--water); }
+  .room-tenant { font-size: 12px; color: var(--muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .room-delete {
+    background: none; border: none;
+    color: var(--muted); cursor: pointer;
+    font-size: 14px; padding: 4px 6px;
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
+  }
+  .room-item:hover .room-delete { opacity: 1; }
+  .room-delete:hover { background: rgba(248,113,113,0.15); color: var(--danger); }
+
+  .no-rooms {
+    padding: 30px 14px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  /* ===== TOPBAR ===== */
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: var(--sidebar-w);
+    right: 0;
+    height: 56px;
+    background: rgba(13,17,23,0.88);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 14px;
+    z-index: 40;
+    transition: left 0.3s;
+  }
+  .topbar.expanded { left: 0; }
+
+  .btn-menu {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .btn-menu:hover { background: var(--border); }
+
+  .topbar-title {
+    font-family: 'Prompt', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .topbar-room {
+    font-size: 13px;
+    color: var(--water);
+    background: rgba(56,189,248,0.1);
+    border: 1px solid rgba(56,189,248,0.25);
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  /* ===== MAIN ===== */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 24px;
+    position: relative;
+    z-index: 1;
+    transition: margin-left 0.3s;
+  }
+  .main.expanded { margin-left: 0; }
+
+  .content { width: 100%; max-width: 680px; margin-top: 72px; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    animation: fadeUp 0.5s ease both;
+  }
+  .empty-icon { font-size: 64px; margin-bottom: 20px; opacity: 0.5; }
+  .empty-state h2 { font-family: 'Prompt', sans-serif; font-size: 22px; margin-bottom: 10px; color: var(--muted); }
+  .empty-state p { color: var(--muted); font-size: 15px; margin-bottom: 28px; line-height: 1.6; }
+  .btn-empty {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 13px 24px;
+    background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+    color: #fff; border: none; border-radius: 12px;
+    font-family: 'Prompt', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(56,189,248,0.3);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn-empty:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(56,189,248,0.4); }
+
+  /* ===== CARDS ===== */
+  .form-header {
+    text-align: center;
+    margin-bottom: 28px;
+    animation: fadeDown 0.5s ease both;
+  }
+  .header-pill {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 10px 18px; margin-bottom: 12px;
+  }
+  .room-badge { font-family: 'Prompt', sans-serif; font-size: 22px; font-weight: 700; color: var(--water); }
+  .form-header h1 { font-family: 'Prompt', sans-serif; font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .form-header p { color: var(--muted); font-size: 14px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+    animation: fadeUp 0.5s ease both;
+  }
+  .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .card-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-water { background: var(--water); box-shadow: 0 0 8px rgba(56,189,248,0.6); }
+  .dot-elec  { background: var(--electric); box-shadow: 0 0 8px rgba(251,191,36,0.6); }
+  .card-title { font-family: 'Prompt', sans-serif; font-size: 15px; font-weight: 600; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+  label { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0.02em; }
+
+  input, select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+    font-size: 15px;
+    padding: 10px 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+  input:focus, select:focus { border-color: var(--water); box-shadow: 0 0 0 3px rgba(56,189,248,0.12); }
+  .elec-focus input:focus { border-color: var(--electric); box-shadow: 0 0 0 3px rgba(251,191,36,0.12); }
+  input::placeholder { color: #4a5568; }
+
+  .unit-display {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; margin-top: 10px;
+  }
+  .unit-label { color: var(--muted); font-size: 14px; }
+  .unit-val { font-family: 'Prompt', sans-serif; font-weight: 600; font-size: 17px; }
+  .unit-val.water { color: var(--water); }
+  .unit-val.elec  { color: var(--electric); }
+
+  .summary-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 11px 0; border-bottom: 1px solid var(--border); font-size: 15px;
+  }
+  .summary-row:last-of-type { border-bottom: none; }
+  .summary-row .slabel { color: var(--muted); }
+  .summary-row .val { font-weight: 600; }
+  .summary-row .val.water { color: var(--water); }
+  .summary-row .val.elec  { color: var(--electric); }
+
+  .total-row {
+    margin-top: 12px; padding: 14px;
+    background: var(--surface2); border-radius: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .total-label { font-family: 'Prompt', sans-serif; font-size: 14px; color: var(--muted); font-weight: 600; }
+  .total-amount {
+    font-family: 'Prompt', sans-serif; font-size: 24px; font-weight: 700;
+    background: linear-gradient(90deg, var(--water), var(--electric));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+
+  .btn {
+    width: 100%; padding: 14px; border-radius: 12px; border: none;
+    font-family: 'Prompt', sans-serif; font-size: 15px; font-weight: 600;
+    cursor: pointer; margin-top: 16px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+    color: #fff; box-shadow: 0 4px 20px rgba(56,189,248,0.3);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(56,189,248,0.4); }
+
+  /* ===== OVERLAYS ===== */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+    z-index: 200; align-items: center; justify-content: center;
+  }
+  .overlay.show { display: flex; }
+
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 32px; max-width: 380px; width: 90%;
+    animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  .modal h2 { font-family: 'Prompt', sans-serif; font-size: 18px; margin-bottom: 6px; }
+  .modal p { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+  .modal-input {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text);
+    font-family: 'Sarabun', sans-serif; font-size: 16px;
+    padding: 12px 14px; outline: none; width: 100%; margin-bottom: 16px;
+    transition: border-color 0.2s;
+  }
+  .modal-input:focus { border-color: var(--water); }
+  .modal-input::placeholder { color: #4a5568; }
+  .modal-btns { display: flex; gap: 10px; }
+  .btn-cancel {
+    flex: 1; padding: 12px; border-radius: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: 'Prompt', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-cancel:hover { background: var(--border); }
+  .btn-confirm {
+    flex: 2; padding: 12px; border-radius: 10px;
+    background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+    border: none; color: #fff; font-family: 'Prompt', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer; opacity: 1;
+    transition: opacity 0.15s;
+  }
+  .btn-confirm:hover { opacity: 0.88; }
+
+  .success-box {
+    text-align: center; max-width: 380px; width: 90%;
+    background: var(--surface); border: 1px solid var(--success);
+    border-radius: 24px; padding: 40px 32px;
+    animation: popIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  .success-icon {
+    width: 64px; height: 64px;
+    background: rgba(74,222,128,0.15); border: 2px solid var(--success);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin: 0 auto 16px;
+  }
+  .success-box h2 { font-family: 'Prompt', sans-serif; font-size: 20px; color: var(--success); margin-bottom: 6px; }
+  .success-box p { color: var(--muted); font-size: 14px; margin-bottom: 8px; }
+
+  .receipt-info {
+    background: var(--surface2); border-radius: 12px;
+    padding: 14px; margin: 16px 0;
+    text-align: left; font-size: 13px; line-height: 2;
+  }
+  .receipt-info .rkey { color: var(--muted); }
+  .receipt-info .rval { font-weight: 600; float: right; }
+
+  .btn-close-s {
+    width: 100%; padding: 12px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); font-family: 'Prompt', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-close-s:hover { background: var(--border); }
+
+  /* Sidebar backdrop mobile */
+  .sidebar-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 45;
+  }
+
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeUp   { from { opacity:0; transform:translateY(16px); }  to { opacity:1; transform:translateY(0); } }
+  @keyframes popIn    { from { opacity:0; transform:scale(0.85); } to { opacity:1; transform:scale(1); } }
+
+  @media (max-width: 640px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.mobile-open { transform: translateX(0); }
+    .main { margin-left: 0 !important; }
+    .topbar { left: 0 !important; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid .full { grid-column: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeMobileSidebar()"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-head">
+    <div class="sidebar-logo">
+      <div class="logo-icons">
+        <span class="w">💧</span>
+        <span class="e">⚡</span>
+      </div>
+      จัดการห้องพัก
+    </div>
+    <button class="sidebar-close-btn" onclick="toggleSidebar()" title="ปิดเมนู">✕</button>
+  </div>
+
+  <button class="btn-add-room" onclick="openAddRoom()">
+    <span style="font-size:20px;line-height:1">＋</span> สร้างห้องใหม่
+  </button>
+
+  <div class="rooms-label">ห้องทั้งหมด</div>
+
+  <div class="rooms-list" id="roomsList">
+    <div class="no-rooms" id="noRooms">ยังไม่มีห้องพัก<br>กด "สร้างห้องใหม่" เพื่อเพิ่ม</div>
+  </div>
+</aside>
+
+<!-- TOPBAR -->
+<div class="topbar" id="topbar">
+  <button class="btn-menu" onclick="toggleSidebar()">☰</button>
+  <span class="topbar-title">ระบบค่าสาธารณูปโภค</span>
+  <span class="topbar-room" id="topbarRoom" style="display:none"></span>
+</div>
+
+<!-- MAIN -->
+<main class="main" id="main">
+  <div class="content">
+
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🏠</div>
+      <h2>เลือกหรือสร้างห้องพัก</h2>
+      <p>เปิดเมนูซ้ายบนเพื่อสร้างห้อง<br>หรือเลือกห้องที่มีอยู่แล้ว</p>
+      <button class="btn-empty" onclick="openAddRoom()">＋ สร้างห้องใหม่</button>
+    </div>
+
+    <div id="billForm" style="display:none">
+      <div class="form-header">
+        <div class="header-pill">
+          <span>🏠</span>
+          <span class="room-badge" id="formRoomBadge">—</span>
+        </div>
+        <h1>บันทึกค่าสาธารณูปโภค</h1>
+        <p>กรอกข้อมูลมิเตอร์น้ำและไฟประจำเดือน</p>
+      </div>
+
+      <!-- ข้อมูลผู้เช่า -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot dot-water"></div>
+          <span class="card-title">ข้อมูลผู้เช่า</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>ชื่อผู้เช่า</label>
+            <input type="text" id="tenantName" placeholder="ชื่อ - นามสกุล">
+          </div>
+          <div class="form-group">
+            <label>เดือน</label>
+            <select id="billMonthSel"></select>
+          </div>
+          <div class="form-group">
+            <label>ปี (พ.ศ.)</label>
+            <select id="billYearSel"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ค่าน้ำ -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot dot-water"></div>
+          <span class="card-title">💧 ค่าน้ำประปา</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>เลขมิเตอร์ก่อนหน้า</label>
+            <input type="number" id="waterPrev" placeholder="0" oninput="calcWater()">
+          </div>
+          <div class="form-group">
+            <label>เลขมิเตอร์ปัจจุบัน</label>
+            <input type="number" id="waterCurr" placeholder="0" oninput="calcWater()">
+          </div>
+          <div class="form-group">
+            <label>ราคาต่อหน่วย (บาท)</label>
+            <input type="number" id="waterRate" value="18" oninput="calcWater()">
+          </div>
+          <div class="form-group">
+            <label>ค่าบริการรายเดือน (บาท)</label>
+            <input type="number" id="waterService" value="0" oninput="calcWater()">
+          </div>
+        </div>
+        <div class="unit-display">
+          <span class="unit-label">หน่วยที่ใช้</span>
+          <span class="unit-val water" id="waterUnits">0 หน่วย</span>
+        </div>
+        <div class="unit-display" style="margin-top:8px">
+          <span class="unit-label">💧 รวมค่าน้ำ</span>
+          <span class="unit-val water" id="waterTotal">0.00 บาท</span>
+        </div>
+      </div>
+
+      <!-- ค่าไฟ -->
+      <div class="card elec-focus">
+        <div class="card-header">
+          <div class="card-dot dot-elec"></div>
+          <span class="card-title">⚡ ค่าไฟฟ้า</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>เลขมิเตอร์ก่อนหน้า</label>
+            <input type="number" id="elecPrev" placeholder="0" oninput="calcElec()">
+          </div>
+          <div class="form-group">
+            <label>เลขมิเตอร์ปัจจุบัน</label>
+            <input type="number" id="elecCurr" placeholder="0" oninput="calcElec()">
+          </div>
+          <div class="form-group">
+            <label>ราคาต่อหน่วย (บาท)</label>
+            <input type="number" id="elecRate" value="7" oninput="calcElec()">
+          </div>
+          <div class="form-group">
+            <label>ค่าบริการรายเดือน (บาท)</label>
+            <input type="number" id="elecService" value="0" oninput="calcElec()">
+          </div>
+        </div>
+        <div class="unit-display">
+          <span class="unit-label">หน่วยที่ใช้</span>
+          <span class="unit-val elec" id="elecUnits">0 หน่วย</span>
+        </div>
+        <div class="unit-display" style="margin-top:8px">
+          <span class="unit-label">⚡ รวมค่าไฟ</span>
+          <span class="unit-val elec" id="elecTotal">0.00 บาท</span>
+        </div>
+      </div>
+
+      <!-- สรุป -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot" style="background:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,0.5)"></div>
+          <span class="card-title">สรุปยอดชำระ</span>
+        </div>
+        <div class="summary-row">
+          <span class="slabel">💧 ค่าน้ำประปา</span>
+          <span class="val water" id="sumWater">0.00 บาท</span>
+        </div>
+        <div class="summary-row">
+          <span class="slabel">⚡ ค่าไฟฟ้า</span>
+          <span class="val elec" id="sumElec">0.00 บาท</span>
+        </div>
+        <div class="total-row">
+          <span class="total-label">💰 ยอดรวมทั้งสิ้น</span>
+          <span class="total-amount" id="grandTotal">0.00 บาท</span>
+        </div>
+        <button class="btn btn-primary" onclick="submitBill()">✅ บันทึกการชำระเงิน</button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- MODAL: Add Room -->
+<div class="overlay" id="addRoomOverlay">
+  <div class="modal">
+    <h2>🏠 สร้างห้องใหม่</h2>
+    <p>ตั้งชื่อห้อง เช่น A1, B2, 101, 202</p>
+    <input type="text" class="modal-input" id="newRoomInput" placeholder="เช่น A1, B2, 101 ..." maxlength="20"
+      onkeydown="if(event.key==='Enter') confirmAddRoom()">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeAddRoom()">ยกเลิก</button>
+      <button class="btn-confirm" onclick="confirmAddRoom()">✅ สร้างห้อง</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Success -->
+<div class="overlay" id="successOverlay">
+  <div class="success-box">
+    <div class="success-icon">✅</div>
+    <h2>บันทึกสำเร็จ!</h2>
+    <p>ระบบบันทึกการชำระค่าสาธารณูปโภคเรียบร้อยแล้ว</p>
+    <div class="receipt-info" id="receiptInfo"></div>
+    <button class="btn-close-s" onclick="closeSuccess()">ปิด / รับชำระรายใหม่</button>
+  </div>
+</div>
+
+<script>
+  // STATE
+  let rooms = JSON.parse(localStorage.getItem('utl_rooms') || '[]');
+  let activeRoomId = null;
+  let sidebarVisible = true;
+
+  // THAI MONTH DROPDOWNS INIT
+  const THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+    'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
+  (function initMonthYear() {
+    const mSel = document.getElementById('billMonthSel');
+    const ySel = document.getElementById('billYearSel');
+    const now = new Date();
+    THAI_MONTHS.forEach((m, i) => {
+      const opt = document.createElement('option');
+      opt.value = i + 1;
+      opt.textContent = m;
+      if (i === now.getMonth()) opt.selected = true;
+      mSel.appendChild(opt);
+    });
+    for (let y = now.getFullYear() + 543; y >= now.getFullYear() + 543 - 5; y--) {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = 'พ.ศ. ' + y;
+      if (y === now.getFullYear() + 543) opt.selected = true;
+      ySel.appendChild(opt);
+    }
+  })();
+
+  function getBillMonthLabel() {
+    const m = parseInt(document.getElementById('billMonthSel').value);
+    const y = document.getElementById('billYearSel').value;
+    const short = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    return `${short[m-1]} ${y}`;
+  }
+
+  // INIT
+  renderRooms();
+  initLayout();
+  window.addEventListener('resize', initLayout);
+
+  function initLayout() {
+    if (window.innerWidth <= 640) {
+      sidebarVisible = false;
+      applySidebarState();
+    } else {
+      if (sidebarVisible === null) sidebarVisible = true;
+      applySidebarState();
+    }
+  }
+
+  function applySidebarState() {
+    const sidebar = document.getElementById('sidebar');
+    const main    = document.getElementById('main');
+    const topbar  = document.getElementById('topbar');
+    const backdrop = document.getElementById('sidebarBackdrop');
+
+    if (window.innerWidth <= 640) {
+      // Mobile: sidebar slides over content
+      sidebar.classList.toggle('mobile-open', sidebarVisible);
+      backdrop.style.display = sidebarVisible ? 'block' : 'none';
+      main.classList.remove('expanded');
+      topbar.classList.remove('expanded');
+    } else {
+      // Desktop: sidebar pushes content
+      sidebar.classList.remove('mobile-open');
+      backdrop.style.display = 'none';
+      if (sidebarVisible) {
+        sidebar.classList.remove('collapsed');
+        main.classList.remove('expanded');
+        topbar.classList.remove('expanded');
+      } else {
+        sidebar.classList.add('collapsed');
+        main.classList.add('expanded');
+        topbar.classList.add('expanded');
+      }
+    }
+  }
+
+  function toggleSidebar() {
+    sidebarVisible = !sidebarVisible;
+    applySidebarState();
+  }
+
+  function closeMobileSidebar() {
+    sidebarVisible = false;
+    applySidebarState();
+  }
+
+  // ROOMS
+  function renderRooms() {
+    const list = document.getElementById('roomsList');
+    const noRooms = document.getElementById('noRooms');
+    list.querySelectorAll('.room-item').forEach(el => el.remove());
+
+    if (rooms.length === 0) { noRooms.style.display = 'block'; return; }
+    noRooms.style.display = 'none';
+
+    rooms.forEach(room => {
+      const item = document.createElement('div');
+      item.className = 'room-item' + (activeRoomId === room.id ? ' active' : '');
+      item.innerHTML = `
+        <div class="room-info">
+          <span class="room-name">ห้อง ${escHtml(room.name)}</span>
+          <span class="room-tenant">${escHtml(room.lastTenant || 'ยังไม่มีผู้เช่า')}</span>
+        </div>
+        <button class="room-delete" title="ลบห้อง">🗑</button>
+      `;
+      item.querySelector('.room-delete').addEventListener('click', e => {
+        e.stopPropagation();
+        deleteRoom(room.id);
+      });
+      item.addEventListener('click', () => selectRoom(room.id));
+      list.appendChild(item);
+    });
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function openAddRoom() {
+    document.getElementById('newRoomInput').value = '';
+    document.getElementById('addRoomOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('newRoomInput').focus(), 100);
+  }
+
+  function closeAddRoom() {
+    document.getElementById('addRoomOverlay').classList.remove('show');
+  }
+
+  function confirmAddRoom() {
+    const raw = document.getElementById('newRoomInput').value.trim();
+    const name = raw.toUpperCase();
+    if (!name) { document.getElementById('newRoomInput').focus(); return; }
+    if (rooms.find(r => r.name === name)) { alert(`ห้อง ${name} มีอยู่แล้ว`); return; }
+    const room = { id: Date.now().toString(), name, lastTenant: '', lastTenantFull: '' };
+    rooms.push(room);
+    saveRooms();
+    renderRooms();
+    closeAddRoom();
+    selectRoom(room.id);
+    if (window.innerWidth <= 640) { sidebarVisible = false; applySidebarState(); }
+  }
+
+  function deleteRoom(id) {
+    const room = rooms.find(r => r.id === id);
+    if (!room) return;
+    if (!confirm(`ลบห้อง ${room.name} ?\nข้อมูลจะหายถาวร`)) return;
+    rooms = rooms.filter(r => r.id !== id);
+    saveRooms();
+    if (activeRoomId === id) { activeRoomId = null; showEmptyState(); }
+    renderRooms();
+  }
+
+  function selectRoom(id) {
+    activeRoomId = id;
+    const room = rooms.find(r => r.id === id);
+    document.getElementById('formRoomBadge').textContent = 'ห้อง ' + room.name;
+    document.getElementById('topbarRoom').textContent = 'ห้อง ' + room.name;
+    document.getElementById('topbarRoom').style.display = 'inline';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('billForm').style.display = 'block';
+    renderRooms();
+    resetForm();
+    // Prefill tenant name if saved
+    if (room.lastTenantFull) {
+      document.getElementById('tenantName').value = room.lastTenantFull;
+    }
+  }
+
+  function showEmptyState() {
+    document.getElementById('emptyState').style.display = 'block';
+    document.getElementById('billForm').style.display = 'none';
+    document.getElementById('topbarRoom').style.display = 'none';
+  }
+
+  function saveRooms() { localStorage.setItem('utl_rooms', JSON.stringify(rooms)); }
+
+  // CALC
+  function getVal(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+  function calcWater() {
+    const units = Math.max(0, getVal('waterCurr') - getVal('waterPrev'));
+    const total = units * getVal('waterRate') + getVal('waterService');
+    document.getElementById('waterUnits').textContent = `${units.toLocaleString()} หน่วย`;
+    document.getElementById('waterTotal').textContent = `${fmt(total)} บาท`;
+    updateSummary();
+  }
+
+  function calcElec() {
+    const units = Math.max(0, getVal('elecCurr') - getVal('elecPrev'));
+    const total = units * getVal('elecRate') + getVal('elecService');
+    document.getElementById('elecUnits').textContent = `${units.toLocaleString()} หน่วย`;
+    document.getElementById('elecTotal').textContent = `${fmt(total)} บาท`;
+    updateSummary();
+  }
+
+  function getWaterTotal() { return Math.max(0, getVal('waterCurr') - getVal('waterPrev')) * getVal('waterRate') + getVal('waterService'); }
+  function getElecTotal()  { return Math.max(0, getVal('elecCurr') - getVal('elecPrev')) * getVal('elecRate') + getVal('elecService'); }
+
+  function updateSummary() {
+    const w = getWaterTotal(), e = getElecTotal();
+    document.getElementById('sumWater').textContent  = `${fmt(w)} บาท`;
+    document.getElementById('sumElec').textContent   = `${fmt(e)} บาท`;
+    document.getElementById('grandTotal').textContent = `${fmt(w+e)} บาท`;
+  }
+
+  function fmt(n) { return n.toLocaleString('th-TH', { minimumFractionDigits: 2 }); }
+
+  function thaiMonth(str) {
+    if (!str) return '-';
+    const [y, m] = str.split('-');
+    const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    return `${months[parseInt(m)-1]} ${parseInt(y)+543}`;
+  }
+
+  // SUBMIT
+  function submitBill() {
+    if (!activeRoomId) return;
+    const room  = rooms.find(r => r.id === activeRoomId);
+    const name  = document.getElementById('tenantName').value.trim();
+    if (!name) { alert('กรุณากรอกชื่อผู้เช่าก่อน'); return; }
+
+    const monthLabel = getBillMonthLabel();
+    const w = getWaterTotal(), e = getElecTotal(), g = w + e;
+    const wU = Math.max(0, getVal('waterCurr') - getVal('waterPrev'));
+    const eU = Math.max(0, getVal('elecCurr') - getVal('elecPrev'));
+
+    room.lastTenant = name;
+    room.lastTenantFull = name;
+    saveRooms();
+    renderRooms();
+
+    document.getElementById('receiptInfo').innerHTML = `
+      <div><span class="rkey">ห้อง</span><span class="rval">${escHtml(room.name)}</span><div style="clear:both"></div></div>
+      <div><span class="rkey">ผู้เช่า</span><span class="rval">${escHtml(name)}</span><div style="clear:both"></div></div>
+      <div><span class="rkey">เดือน</span><span class="rval">${monthLabel}</span><div style="clear:both"></div></div>
+      <div><span class="rkey">💧 ค่าน้ำ (${wU} หน่วย)</span><span class="rval">${fmt(w)} บาท</span><div style="clear:both"></div></div>
+      <div><span class="rkey">⚡ ค่าไฟ (${eU} หน่วย)</span><span class="rval">${fmt(e)} บาท</span><div style="clear:both"></div></div>
+      <div style="border-top:1px solid #30363d;margin-top:8px;padding-top:8px">
+        <span class="rkey"><b>รวมทั้งสิ้น</b></span>
+        <span class="rval" style="color:#4ade80;font-size:15px">${fmt(g)} บาท</span>
+        <div style="clear:both"></div>
+      </div>
+    `;
+    document.getElementById('successOverlay').classList.add('show');
+  }
+
+  function closeSuccess() {
+    document.getElementById('successOverlay').classList.remove('show');
+    resetForm();
+  }
+
+  function resetForm() {
+    ['tenantName','waterPrev','waterCurr','waterService','elecPrev','elecCurr','elecService']
+      .forEach(id => document.getElementById(id).value = '');
+    document.getElementById('waterRate').value = '18';
+    document.getElementById('elecRate').value  = '7';
+    // Reset month/year dropdowns to current month
+    const n = new Date();
+    document.getElementById('billMonthSel').value = n.getMonth() + 1;
+    document.getElementById('billYearSel').value  = n.getFullYear() + 543;
+    calcWater(); calcElec();
+  }
+</script>
+</body>
+</html>
