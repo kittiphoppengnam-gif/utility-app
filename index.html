@@ -631,6 +631,16 @@
           <span class="slabel">⚡ ค่าไฟฟ้า</span>
           <span class="val elec" id="sumElec">0.00 บาท</span>
         </div>
+        <div class="summary-row">
+          <span class="slabel">⚠️ ค่าปรับ</span>
+          <span class="val" style="color:var(--danger)" id="sumFine">0.00 บาท</span>
+        </div>
+        <div class="form-group" style="margin-top:4px;margin-bottom:4px">
+          <div style="display:flex;gap:10px;align-items:center">
+            <input type="number" id="fineAmount" placeholder="ระบุจำนวนเงินค่าปรับ (บาท)" oninput="updateSummary()" style="flex:1">
+            <input type="text" id="fineReason" placeholder="หมายเหตุ เช่น ค่าปรับล่าช้า" style="flex:1.2">
+          </div>
+        </div>
         <div class="total-row">
           <span class="total-label">💰 ยอดรวมทั้งสิ้น</span>
           <span class="total-amount" id="grandTotal">0.00 บาท</span>
@@ -891,14 +901,16 @@
   function getRentTotal()  { return getVal('rentAmount'); }
   function getWaterTotal() { return Math.max(0, getVal('waterCurr') - getVal('waterPrev')) * getVal('waterRate'); }
   function getElecTotal()  { return Math.max(0, getVal('elecCurr') - getVal('elecPrev')) * getVal('elecRate'); }
+  function getFineTotal()  { return getVal('fineAmount'); }
 
   function updateSummary() {
-    const r = getRentTotal(), w = getWaterTotal(), e = getElecTotal();
+    const r = getRentTotal(), w = getWaterTotal(), e = getElecTotal(), f = getFineTotal();
     document.getElementById('rentDisplay').textContent  = `${fmt(r)} บาท`;
     document.getElementById('sumRent').textContent      = `${fmt(r)} บาท`;
     document.getElementById('sumWater').textContent     = `${fmt(w)} บาท`;
     document.getElementById('sumElec').textContent      = `${fmt(e)} บาท`;
-    document.getElementById('grandTotal').textContent   = `${fmt(r+w+e)} บาท`;
+    document.getElementById('sumFine').textContent      = `${fmt(f)} บาท`;
+    document.getElementById('grandTotal').textContent   = `${fmt(r+w+e+f)} บาท`;
   }
 
   function fmt(n) { return n.toLocaleString('th-TH', { minimumFractionDigits: 2 }); }
@@ -911,13 +923,14 @@
     if (!name) { alert('กรุณากรอกชื่อผู้เช่าก่อน'); return; }
 
     const monthLabel = getBillMonthLabel();
-    const r = getRentTotal(), w = getWaterTotal(), e = getElecTotal(), g = r + w + e;
+    const r = getRentTotal(), w = getWaterTotal(), e = getElecTotal(), f = getFineTotal(), g = r + w + e + f;
     const wU = Math.max(0, getVal('waterCurr') - getVal('waterPrev'));
     const eU = Math.max(0, getVal('elecCurr') - getVal('elecPrev'));
     const phone   = document.getElementById('tenantPhone').value.trim();
     const idCard  = document.getElementById('tenantIdCard').value.trim();
     const address = document.getElementById('tenantAddress').value.trim();
     const rent    = document.getElementById('rentAmount').value.trim();
+    const fineReason = document.getElementById('fineReason').value.trim();
 
     // Save back to room
     room.lastTenant = name;
@@ -940,6 +953,7 @@
         <div><span class="rkey">🏠 ค่าห้องพัก</span><span class="rval" style="color:var(--rent)">${fmt(r)} บาท</span><div style="clear:both"></div></div>
         <div><span class="rkey">💧 ค่าน้ำ (${wU} หน่วย)</span><span class="rval" style="color:var(--water)">${fmt(w)} บาท</span><div style="clear:both"></div></div>
         <div><span class="rkey">⚡ ค่าไฟ (${eU} หน่วย)</span><span class="rval" style="color:var(--electric)">${fmt(e)} บาท</span><div style="clear:both"></div></div>
+        ${f > 0 ? `<div><span class="rkey">⚠️ ค่าปรับ${fineReason ? ' ('+escHtml(fineReason)+')' : ''}</span><span class="rval" style="color:var(--danger)">${fmt(f)} บาท</span><div style="clear:both"></div></div>` : ''}
       </div>
       <div style="border-top:1px solid #30363d;margin-top:8px;padding-top:8px">
         <span class="rkey"><b>รวมทั้งสิ้น</b></span>
@@ -957,7 +971,7 @@
 
   function resetForm() {
     ['tenantName','tenantIdCard','tenantPhone','tenantAddress','rentAmount',
-     'waterPrev','waterCurr','elecPrev','elecCurr']
+     'waterPrev','waterCurr','elecPrev','elecCurr','fineAmount','fineReason']
       .forEach(id => document.getElementById(id).value = '');
     document.getElementById('waterRate').value = '18';
     document.getElementById('elecRate').value  = '7';
