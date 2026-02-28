@@ -16,6 +16,7 @@
     --border: #30363d;
     --water: #38bdf8;
     --electric: #fbbf24;
+    --rent: #a78bfa;
     --success: #4ade80;
     --danger: #f87171;
     --text: #e6edf3;
@@ -278,6 +279,7 @@
   .card-dot { width: 10px; height: 10px; border-radius: 50%; }
   .dot-water { background: var(--water); box-shadow: 0 0 8px rgba(56,189,248,0.6); }
   .dot-elec  { background: var(--electric); box-shadow: 0 0 8px rgba(251,191,36,0.6); }
+  .dot-rent  { background: var(--rent); box-shadow: 0 0 8px rgba(167,139,250,0.6); }
   .card-title { font-family: 'Prompt', sans-serif; font-size: 15px; font-weight: 600; }
 
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -311,6 +313,7 @@
   .unit-val { font-family: 'Prompt', sans-serif; font-weight: 600; font-size: 17px; }
   .unit-val.water { color: var(--water); }
   .unit-val.elec  { color: var(--electric); }
+  .unit-val.rent  { color: var(--rent); }
 
   .summary-row {
     display: flex; justify-content: space-between; align-items: center;
@@ -321,6 +324,7 @@
   .summary-row .val { font-weight: 600; }
   .summary-row .val.water { color: var(--water); }
   .summary-row .val.elec  { color: var(--electric); }
+  .summary-row .val.rent  { color: var(--rent); }
 
   .total-row {
     margin-top: 12px; padding: 14px;
@@ -390,10 +394,11 @@
   .btn-confirm:hover { opacity: 0.88; }
 
   .success-box {
-    text-align: center; max-width: 380px; width: 90%;
+    text-align: center; max-width: 420px; width: 90%;
     background: var(--surface); border: 1px solid var(--success);
     border-radius: 24px; padding: 40px 32px;
     animation: popIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;
+    max-height: 90vh; overflow-y: auto;
   }
   .success-icon {
     width: 64px; height: 64px;
@@ -508,14 +513,43 @@
             <label>ชื่อผู้เช่า</label>
             <input type="text" id="tenantName" placeholder="ชื่อ - นามสกุล">
           </div>
-          <div class="form-group">
-            <label>เดือน</label>
-            <select id="billMonthSel"></select>
+          <div class="form-group full">
+            <label>เลขบัตรประชาชน</label>
+            <input type="text" id="tenantIdCard" placeholder="x-xxxx-xxxxx-xx-x" maxlength="17" oninput="formatIdCard(this)">
           </div>
           <div class="form-group">
-            <label>ปี (พ.ศ.)</label>
-            <select id="billYearSel"></select>
+            <label>เบอร์โทรศัพท์</label>
+            <input type="tel" id="tenantPhone" placeholder="0xx-xxx-xxxx" maxlength="12" oninput="formatPhone(this)">
           </div>
+          <div class="form-group">
+            <label>เดือน / ปี (พ.ศ.)</label>
+            <div style="display:flex;gap:8px">
+              <select id="billMonthSel" style="flex:1"></select>
+              <select id="billYearSel" style="flex:1"></select>
+            </div>
+          </div>
+          <div class="form-group full">
+            <label>ที่อยู่</label>
+            <input type="text" id="tenantAddress" placeholder="บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด">
+          </div>
+        </div>
+      </div>
+
+      <!-- ค่าห้อง -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot dot-rent"></div>
+          <span class="card-title">🏠 ค่าห้องพัก</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>ค่าเช่าห้องประจำเดือน (บาท)</label>
+            <input type="number" id="rentAmount" placeholder="0" oninput="updateSummary()">
+          </div>
+        </div>
+        <div class="unit-display" style="margin-top:10px">
+          <span class="unit-label">🏠 ค่าห้องพัก</span>
+          <span class="unit-val rent" id="rentDisplay">0.00 บาท</span>
         </div>
       </div>
 
@@ -534,13 +568,9 @@
             <label>เลขมิเตอร์ปัจจุบัน</label>
             <input type="number" id="waterCurr" placeholder="0" oninput="calcWater()">
           </div>
-          <div class="form-group">
+          <div class="form-group full">
             <label>ราคาต่อหน่วย (บาท)</label>
             <input type="number" id="waterRate" value="18" oninput="calcWater()">
-          </div>
-          <div class="form-group">
-            <label>ค่าบริการรายเดือน (บาท)</label>
-            <input type="number" id="waterService" value="0" oninput="calcWater()">
           </div>
         </div>
         <div class="unit-display">
@@ -568,13 +598,9 @@
             <label>เลขมิเตอร์ปัจจุบัน</label>
             <input type="number" id="elecCurr" placeholder="0" oninput="calcElec()">
           </div>
-          <div class="form-group">
+          <div class="form-group full">
             <label>ราคาต่อหน่วย (บาท)</label>
             <input type="number" id="elecRate" value="7" oninput="calcElec()">
-          </div>
-          <div class="form-group">
-            <label>ค่าบริการรายเดือน (บาท)</label>
-            <input type="number" id="elecService" value="0" oninput="calcElec()">
           </div>
         </div>
         <div class="unit-display">
@@ -594,6 +620,10 @@
           <span class="card-title">สรุปยอดชำระ</span>
         </div>
         <div class="summary-row">
+          <span class="slabel">🏠 ค่าห้องพัก</span>
+          <span class="val rent" id="sumRent">0.00 บาท</span>
+        </div>
+        <div class="summary-row">
           <span class="slabel">💧 ค่าน้ำประปา</span>
           <span class="val water" id="sumWater">0.00 บาท</span>
         </div>
@@ -605,7 +635,7 @@
           <span class="total-label">💰 ยอดรวมทั้งสิ้น</span>
           <span class="total-amount" id="grandTotal">0.00 บาท</span>
         </div>
-        <button class="btn btn-primary" onclick="submitBill()">✅ บันทึกการชำระเงิน</button>
+        <button class="btn btn-primary" onclick="submitBill()">✅ ส่งบิล</button>
       </div>
     </div>
 
@@ -674,6 +704,27 @@
     return `${short[m-1]} ${y}`;
   }
 
+  // FORMAT helpers
+  function formatIdCard(input) {
+    let v = input.value.replace(/[^0-9]/g, '').substring(0, 13);
+    let formatted = '';
+    for (let i = 0; i < v.length; i++) {
+      if (i === 1 || i === 5 || i === 10 || i === 12) formatted += '-';
+      formatted += v[i];
+    }
+    input.value = formatted;
+  }
+
+  function formatPhone(input) {
+    let v = input.value.replace(/[^0-9]/g, '').substring(0, 10);
+    let formatted = '';
+    for (let i = 0; i < v.length; i++) {
+      if (i === 3 || i === 6) formatted += '-';
+      formatted += v[i];
+    }
+    input.value = formatted;
+  }
+
   // INIT
   renderRooms();
   initLayout();
@@ -696,13 +747,11 @@
     const backdrop = document.getElementById('sidebarBackdrop');
 
     if (window.innerWidth <= 640) {
-      // Mobile: sidebar slides over content
       sidebar.classList.toggle('mobile-open', sidebarVisible);
       backdrop.style.display = sidebarVisible ? 'block' : 'none';
       main.classList.remove('expanded');
       topbar.classList.remove('expanded');
     } else {
-      // Desktop: sidebar pushes content
       sidebar.classList.remove('mobile-open');
       backdrop.style.display = 'none';
       if (sidebarVisible) {
@@ -774,7 +823,7 @@
     const name = raw.toUpperCase();
     if (!name) { document.getElementById('newRoomInput').focus(); return; }
     if (rooms.find(r => r.name === name)) { alert(`ห้อง ${name} มีอยู่แล้ว`); return; }
-    const room = { id: Date.now().toString(), name, lastTenant: '', lastTenantFull: '' };
+    const room = { id: Date.now().toString(), name, lastTenant: '', lastTenantFull: '', lastPhone: '', lastIdCard: '', lastAddress: '', lastRent: '' };
     rooms.push(room);
     saveRooms();
     renderRooms();
@@ -803,10 +852,13 @@
     document.getElementById('billForm').style.display = 'block';
     renderRooms();
     resetForm();
-    // Prefill tenant name if saved
-    if (room.lastTenantFull) {
-      document.getElementById('tenantName').value = room.lastTenantFull;
-    }
+    // Prefill saved tenant info
+    if (room.lastTenantFull) document.getElementById('tenantName').value = room.lastTenantFull;
+    if (room.lastPhone)      document.getElementById('tenantPhone').value = room.lastPhone;
+    if (room.lastIdCard)     document.getElementById('tenantIdCard').value = room.lastIdCard;
+    if (room.lastAddress)    document.getElementById('tenantAddress').value = room.lastAddress;
+    if (room.lastRent)       document.getElementById('rentAmount').value = room.lastRent;
+    updateSummary();
   }
 
   function showEmptyState() {
@@ -822,7 +874,7 @@
 
   function calcWater() {
     const units = Math.max(0, getVal('waterCurr') - getVal('waterPrev'));
-    const total = units * getVal('waterRate') + getVal('waterService');
+    const total = units * getVal('waterRate');
     document.getElementById('waterUnits').textContent = `${units.toLocaleString()} หน่วย`;
     document.getElementById('waterTotal').textContent = `${fmt(total)} บาท`;
     updateSummary();
@@ -830,30 +882,26 @@
 
   function calcElec() {
     const units = Math.max(0, getVal('elecCurr') - getVal('elecPrev'));
-    const total = units * getVal('elecRate') + getVal('elecService');
+    const total = units * getVal('elecRate');
     document.getElementById('elecUnits').textContent = `${units.toLocaleString()} หน่วย`;
     document.getElementById('elecTotal').textContent = `${fmt(total)} บาท`;
     updateSummary();
   }
 
-  function getWaterTotal() { return Math.max(0, getVal('waterCurr') - getVal('waterPrev')) * getVal('waterRate') + getVal('waterService'); }
-  function getElecTotal()  { return Math.max(0, getVal('elecCurr') - getVal('elecPrev')) * getVal('elecRate') + getVal('elecService'); }
+  function getRentTotal()  { return getVal('rentAmount'); }
+  function getWaterTotal() { return Math.max(0, getVal('waterCurr') - getVal('waterPrev')) * getVal('waterRate'); }
+  function getElecTotal()  { return Math.max(0, getVal('elecCurr') - getVal('elecPrev')) * getVal('elecRate'); }
 
   function updateSummary() {
-    const w = getWaterTotal(), e = getElecTotal();
-    document.getElementById('sumWater').textContent  = `${fmt(w)} บาท`;
-    document.getElementById('sumElec').textContent   = `${fmt(e)} บาท`;
-    document.getElementById('grandTotal').textContent = `${fmt(w+e)} บาท`;
+    const r = getRentTotal(), w = getWaterTotal(), e = getElecTotal();
+    document.getElementById('rentDisplay').textContent  = `${fmt(r)} บาท`;
+    document.getElementById('sumRent').textContent      = `${fmt(r)} บาท`;
+    document.getElementById('sumWater').textContent     = `${fmt(w)} บาท`;
+    document.getElementById('sumElec').textContent      = `${fmt(e)} บาท`;
+    document.getElementById('grandTotal').textContent   = `${fmt(r+w+e)} บาท`;
   }
 
   function fmt(n) { return n.toLocaleString('th-TH', { minimumFractionDigits: 2 }); }
-
-  function thaiMonth(str) {
-    if (!str) return '-';
-    const [y, m] = str.split('-');
-    const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-    return `${months[parseInt(m)-1]} ${parseInt(y)+543}`;
-  }
 
   // SUBMIT
   function submitBill() {
@@ -863,21 +911,36 @@
     if (!name) { alert('กรุณากรอกชื่อผู้เช่าก่อน'); return; }
 
     const monthLabel = getBillMonthLabel();
-    const w = getWaterTotal(), e = getElecTotal(), g = w + e;
+    const r = getRentTotal(), w = getWaterTotal(), e = getElecTotal(), g = r + w + e;
     const wU = Math.max(0, getVal('waterCurr') - getVal('waterPrev'));
     const eU = Math.max(0, getVal('elecCurr') - getVal('elecPrev'));
+    const phone   = document.getElementById('tenantPhone').value.trim();
+    const idCard  = document.getElementById('tenantIdCard').value.trim();
+    const address = document.getElementById('tenantAddress').value.trim();
+    const rent    = document.getElementById('rentAmount').value.trim();
 
+    // Save back to room
     room.lastTenant = name;
     room.lastTenantFull = name;
+    room.lastPhone   = phone;
+    room.lastIdCard  = idCard;
+    room.lastAddress = address;
+    room.lastRent    = rent;
     saveRooms();
     renderRooms();
 
     document.getElementById('receiptInfo').innerHTML = `
       <div><span class="rkey">ห้อง</span><span class="rval">${escHtml(room.name)}</span><div style="clear:both"></div></div>
       <div><span class="rkey">ผู้เช่า</span><span class="rval">${escHtml(name)}</span><div style="clear:both"></div></div>
+      ${idCard ? `<div><span class="rkey">เลขบัตรประชาชน</span><span class="rval">${escHtml(idCard)}</span><div style="clear:both"></div></div>` : ''}
+      ${phone  ? `<div><span class="rkey">เบอร์โทร</span><span class="rval">${escHtml(phone)}</span><div style="clear:both"></div></div>` : ''}
+      ${address? `<div><span class="rkey">ที่อยู่</span><span class="rval" style="max-width:200px;text-align:right;font-size:12px">${escHtml(address)}</span><div style="clear:both"></div></div>` : ''}
       <div><span class="rkey">เดือน</span><span class="rval">${monthLabel}</span><div style="clear:both"></div></div>
-      <div><span class="rkey">💧 ค่าน้ำ (${wU} หน่วย)</span><span class="rval">${fmt(w)} บาท</span><div style="clear:both"></div></div>
-      <div><span class="rkey">⚡ ค่าไฟ (${eU} หน่วย)</span><span class="rval">${fmt(e)} บาท</span><div style="clear:both"></div></div>
+      <div style="border-top:1px solid #30363d;margin-top:8px;padding-top:8px">
+        <div><span class="rkey">🏠 ค่าห้องพัก</span><span class="rval" style="color:var(--rent)">${fmt(r)} บาท</span><div style="clear:both"></div></div>
+        <div><span class="rkey">💧 ค่าน้ำ (${wU} หน่วย)</span><span class="rval" style="color:var(--water)">${fmt(w)} บาท</span><div style="clear:both"></div></div>
+        <div><span class="rkey">⚡ ค่าไฟ (${eU} หน่วย)</span><span class="rval" style="color:var(--electric)">${fmt(e)} บาท</span><div style="clear:both"></div></div>
+      </div>
       <div style="border-top:1px solid #30363d;margin-top:8px;padding-top:8px">
         <span class="rkey"><b>รวมทั้งสิ้น</b></span>
         <span class="rval" style="color:#4ade80;font-size:15px">${fmt(g)} บาท</span>
@@ -893,17 +956,16 @@
   }
 
   function resetForm() {
-    ['tenantName','waterPrev','waterCurr','waterService','elecPrev','elecCurr','elecService']
+    ['tenantName','tenantIdCard','tenantPhone','tenantAddress','rentAmount',
+     'waterPrev','waterCurr','elecPrev','elecCurr']
       .forEach(id => document.getElementById(id).value = '');
     document.getElementById('waterRate').value = '18';
     document.getElementById('elecRate').value  = '7';
-    // Reset month/year dropdowns to current month
     const n = new Date();
     document.getElementById('billMonthSel').value = n.getMonth() + 1;
     document.getElementById('billYearSel').value  = n.getFullYear() + 543;
-    calcWater(); calcElec();
+    calcWater(); calcElec(); updateSummary();
   }
-  
 </script>
 </body>
 </html>
