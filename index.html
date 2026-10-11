@@ -653,6 +653,9 @@ const rpcMissing = err => !!err && (err.code === 'PGRST202' || err.code === '428
 const esc  = s  => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 const MSHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+// "ต.ค. 2568" → sortable number, so months order by the bill's month — not by when the bill was created
+const monthKey = l => { const [m, y] = String(l || '').split(' '); return (parseInt(y) || 0) * 12 + MSHORT.indexOf(m); };
+const sortMonthLabels = labels => labels.sort((a, b) => monthKey(b) - monthKey(a));  // newest first
 
 // Validate URLs to prevent javascript: scheme XSS
 const safeUrl = u => {
@@ -685,7 +688,7 @@ const cache = {
 async function getMonthLabels(force = false) {
   if (!force && cache.monthLabels) return cache.monthLabels;
   const { data } = await sb.from('bills').select('month_label').order('issued_at', { ascending: false });
-  const labels = [...new Set((data||[]).map(b => b.month_label).filter(Boolean))];
+  const labels = sortMonthLabels([...new Set((data||[]).map(b => b.month_label).filter(Boolean))]);
   cache.monthLabels = labels;
   return labels;
 }
@@ -1930,9 +1933,13 @@ async function _fetchDashboardData(selectedMonth='') {
   const allBills=billsRes.data||[];
   // Only derive month labels from the unfiltered list, otherwise the dropdowns would shrink to one month
   if(!selectedMonth && !cache.monthLabels && allBills.length)
-    cache.monthLabels=[...new Set(allBills.map(b=>b.month_label).filter(Boolean))];
+    cache.monthLabels=sortMonthLabels([...new Set(allBills.map(b=>b.month_label).filter(Boolean))]);
+  // Latest bill per tenant = newest bill month (a back-dated bill created later must not win)
   const billMap={};
-  for(const b of allBills) if(!billMap[b.tenant_id]) billMap[b.tenant_id]=b;
+  for(const b of allBills){
+    const cur=billMap[b.tenant_id];
+    if(!cur||monthKey(b.month_label)>monthKey(cur.month_label)) billMap[b.tenant_id]=b;
+  }
   return{tenants, billMap};
 }
 
